@@ -16,7 +16,7 @@ algo = SVDpp(init_mean=0)
 
 def train():
     # load dataset
-    file_path = os.path.expanduser('data/1fit.csv')
+    file_path = os.path.expanduser('data/abzal.csv')
     reader = Reader(line_format='user item rating', sep=',')
     data = Dataset.load_from_file(file_path, reader=reader)
     training_set = data.build_full_trainset()

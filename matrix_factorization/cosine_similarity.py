@@ -8,8 +8,8 @@ import random
 
 def parse():
     ratings = []
-    with open('data/user_studio_visit.csv') as csv_file:
-        reader = csv.reader(csv_file, delimiter=' ')
+    with open('data/abzal.csv') as csv_file:
+        reader = csv.reader(csv_file, delimiter=',')
         for row in reader:
             ratings.append((int(row[0]), int(row[1]), int(row[2])))
     return ratings
@@ -30,11 +30,21 @@ def pearson_correlation(x):
     f.close()
     return result
 
-def remove_n(x, n):
+def remove_mean(x):
     for i in range(0, x.shape[0]):
+        sum = 0
+        cnt = 0
+        for j in range(0, x.shape[1]):
+            if x[i][j] != 0: 
+                sum += x[i][j]
+                cnt += 1
+
+        row_mean = sum / cnt
+        print(f'{row_mean} {sum} {cnt}')
         for j in range(0, x.shape[1]):
             if x[i][j] != 0:
-                x[i][j] -= n
+                x[i][j] -= row_mean
+        
 
     return x
 
@@ -54,13 +64,11 @@ def compress_axis(x):
 
     result = []
 
-    f = open('results/cnt.txt', 'w')
-    for i in range(0, n):
-        f.write(f'{cnt[i][0]} {cnt[i][1]}\n')
-        if cnt[i][0] > 9:
-            result.append(x[cnt[i][1]])
-
-    f.close()
+    with open('results/cnt.txt', 'w') as f:
+        for i in range(0, n):
+            f.write(f'{cnt[i][0]} {cnt[i][1]}\n')
+            if cnt[i][0] > 2:
+                result.append(x[cnt[i][1]])
 
     x = np.array(result)
     x = x.transpose()
@@ -70,22 +78,19 @@ def compress_axis(x):
 
 def fit(data, k):
     data = data.astype(float)
-    # find row means
-    # means = np.nanmean(np.where(data != 0, data, np.nan), 1)
-    mean = np.nanmean(np.where(data != 0, data, np.nan))
-    # print(mean)
 
     # remove mean 
-    # data = remove_n(data, mean)
+    demeaned = remove_mean(data.copy())
+    np.savetxt('results/demeaned.txt', demeaned, fmt='%.2f')
     
     # remove 3
     # data = remove_n(data, 3)
 
     # find pearson correlation
-    similarities = pearson_correlation(data)
+    # similarities = pearson_correlation(demeaned)
 
     # find cosine similarity
-    # similarities = metrics.pairwise.cosine_similarity(data)
+    similarities = metrics.pairwise.cosine_similarity(data)
     
     result = data.copy().astype(float)
 
@@ -105,11 +110,9 @@ def fit(data, k):
                     cur += sim * data[user_id][y]
                     cur_sim += sim
                     file.write(f"{x} {y} {sim} {data[user_id][y]}\n")
-                file.write(f"{x} {y} cur: {cur}\n")
                 if cur > 0:
                     result[x][y] = cur / cur_sim
-            # result[x][y] += 3
-            # result[x][y] += mean
+                    file.write(f"{x} {y} cur: {cur / cur_sim}\n")
     file.close()
     np.savetxt('results/cosine_result.txt', result, fmt='%.2f')
     return result
@@ -167,5 +170,5 @@ def test_error(x, k):
 data = prepare_data()
 
 
-for i in range(2, 3):
-    print(f'k={i} rmse={test_error(data, i)}')
+
+print(f'k={10} rmse={test_error(data, 10)}')
