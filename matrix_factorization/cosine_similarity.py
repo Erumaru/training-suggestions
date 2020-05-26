@@ -8,7 +8,7 @@ import random
 
 def parse():
     ratings = []
-    with open('data/abzal.csv') as csv_file:
+    with open('data/ratings.csv') as csv_file:
         reader = csv.reader(csv_file, delimiter=',')
         for row in reader:
             ratings.append((int(row[0]), int(row[1]), int(row[2])))
@@ -148,6 +148,37 @@ def calculate_error(x, y):
     f.close()
     return sqrt(result / n)
 
+def calculate_accuracy(x, k, n):
+    result = fit(x, k)
+    cnt = 0
+    value = 0
+    fl = open('results/accuracy.txt', 'w')
+    for i in range(result.shape[0]):
+        indeces = list(range(result.shape[1]))
+        pred_paired_row = list(map(lambda p, index: (p, index), result[i,:], indeces))
+        pred_sorted_row = sorted(pred_paired_row, key=lambda p: p[0], reverse=True)
+        paired_row = list(map(lambda p, index: (p, index), x[i,:], indeces))
+        sorted_row = sorted(paired_row, key=lambda p: p[0], reverse=True)
+        fl.write(f'{list(map(lambda p: int(p[1]), sorted_row))}\n')
+        fl.write(f'{list(map(lambda p: int(p[0]), sorted_row))}\n')
+        fl.write(f'{list(map(lambda p: int(p[1]), pred_sorted_row))}\n')
+        fl.write(f'{list(map(lambda p: int(p[0]), pred_sorted_row))}\n')
+        for j in range(n):
+            val = pred_sorted_row[j][0] 
+            stud_ind = pred_sorted_row[j][1] 
+            if x[i][stud_ind] == 0:
+                continue
+            cnt += 1
+
+            ind = next(p for p, e in enumerate(sorted_row) if e[1] == stud_ind)
+            if ind < n:
+                value += 1
+                fl.write(f'{i} {stud_ind} {val} {ind} +\n')
+            else:
+                fl.write(f'{i} {stud_ind} {val} {ind} -\n')
+    fl.close()
+    return value / cnt
+
 
 def test_error(x, k):
     train = x.copy()
@@ -170,5 +201,5 @@ def test_error(x, k):
 data = prepare_data()
 
 
-
-print(f'k={10} rmse={test_error(data, 10)}')
+print(calculate_accuracy(data, 10, 10))
+# print(f'k=10 rmse={test_error(data, 10)}')
