@@ -148,37 +148,42 @@ def calculate_error(x, y):
     f.close()
     return sqrt(result / n)
 
-def calculate_accuracy(x, k, n):
-    result = fit(x, k)
-    cnt = 0
-    value = 0
-    fl = open('results/accuracy.txt', 'w')
-    for i in range(result.shape[0]):
-        indeces = list(range(result.shape[1]))
-        pred_paired_row = list(map(lambda p, index: (p, index), result[i,:], indeces))
-        pred_sorted_row = sorted(pred_paired_row, key=lambda p: p[0], reverse=True)
-        paired_row = list(map(lambda p, index: (p, index), x[i,:], indeces))
-        sorted_row = sorted(paired_row, key=lambda p: p[0], reverse=True)
-        fl.write(f'{list(map(lambda p: int(p[1]), sorted_row))}\n')
-        fl.write(f'{list(map(lambda p: int(p[0]), sorted_row))}\n')
-        fl.write(f'{list(map(lambda p: int(p[1]), pred_sorted_row))}\n')
-        fl.write(f'{list(map(lambda p: int(p[0]), pred_sorted_row))}\n')
-        for j in range(n):
-            val = pred_sorted_row[j][0] 
-            stud_ind = pred_sorted_row[j][1] 
-            if x[i][stud_ind] == 0:
+def calculate_accuracy(data, k, n, f):
+    x = data.copy()
+    test = []
+    cur = 0
+    for i in range(x.shape[0]):
+        for j in range(x.shape[1]):
+            if x[i][j] < 5 or cur >= n:
                 continue
-            cnt += 1
+            cur += 1
+            test.append((i, j, x[i][j]))
+            x[i][j] = 0
+            break
 
-            ind = next(p for p, e in enumerate(sorted_row) if e[1] == stud_ind)
-            if ind < n:
-                value += 1
-                fl.write(f'{i} {stud_ind} {val} {ind} +\n')
-            else:
-                fl.write(f'{i} {stud_ind} {val} {ind} -\n')
+    result = fit(x, k)
+    ans = 0
+    sorted_result = []
+
+    indeces = list(range(result.shape[1]))
+    for i in range(result.shape[0]):
+        paired_row = list(map(lambda p, ind: (p, ind), result[i,:], indeces))
+        sorted_row = sorted(paired_row, key=lambda p: p[0], reverse=True)
+        sorted_result.append(sorted_row)
+
+    fl = open('results/accuracy.txt', 'w')
+    for (i, j, z) in test:
+        sorted_row = sorted_result[i]
+        ind = next(p for p, e in enumerate(sorted_row) if e[1] == j)
+        fl.write(f'{sorted_row}\n')
+        if ind < f:
+            ans += 1
+            fl.write(f'{i} {j} {z} {sorted_row[ind]} {ind} +\n')
+        else:
+            fl.write(f'{i} {j} {z} {sorted_row[ind]} {ind} -\n')
+
     fl.close()
-    return value / cnt
-
+    return ans / cur
 
 def test_error(x, k):
     train = x.copy()
@@ -201,5 +206,5 @@ def test_error(x, k):
 data = prepare_data()
 
 
-print(calculate_accuracy(data, 10, 10))
+print(calculate_accuracy(data, 10, 20, 10))
 # print(f'k=10 rmse={test_error(data, 10)}')

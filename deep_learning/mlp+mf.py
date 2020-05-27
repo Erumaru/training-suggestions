@@ -35,7 +35,6 @@ def load_dataset():
     df = df.loc[df.rating != 0]
 
     # Remove any users with fewer than 1 interaction. 
-    df_count = df.groupby(['user']).count()
     df['count'] = df.groupby('user')['user'].transform('count')
     df = df[df['count'] > 1]
 
