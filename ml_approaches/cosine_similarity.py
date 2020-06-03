@@ -3,12 +3,17 @@ import numpy as np
 import csv
 import scipy as sp
 from sklearn.model_selection import KFold
+from sklearn_extra.cluster import KMedoids
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
 from math import sqrt
 import random
+from sklearn.metrics import silhouette_samples, silhouette_score
+from sklearn.preprocessing import StandardScaler
 
 def parse():
     ratings = []
-    with open('data/ratings.csv') as csv_file:
+    with open('data/visits.csv') as csv_file:
         reader = csv.reader(csv_file, delimiter=',')
         for row in reader:
             ratings.append((int(row[0]), int(row[1]), int(row[2])))
@@ -30,6 +35,10 @@ def pearson_correlation(x):
     f.close()
     return result
 
+def pearson_correlation(x, y):
+    value = sp.stats.pearsonr(x, y)
+    return 1 - value[0]
+
 def remove_mean(x):
     for i in range(0, x.shape[0]):
         sum = 0
@@ -48,15 +57,25 @@ def remove_mean(x):
 
     return x
 
+def compress_array(x, i, j, p, z):
+    result = x.copy()
+    print(1)
+    result = result.transpose()
+    result = compress_axis(result, i, p)
+    print(2)
+    result = result.transpose()
+    result = compress_axis(result, j, z)
+    print(3)
+    return result
 
-def compress_axis(x):
+def compress_axis(x, k, p):
     cnt = []
     n = x.shape[0]
 
     for i in range(0, n):
         cur = 0
         for j in range(0, x.shape[1]):
-            if x[i][j] != 0:
+            if x[i][j] > p:
                 cur += 1
         cnt.append((cur, i))
 
@@ -67,14 +86,9 @@ def compress_axis(x):
     with open('results/cnt.txt', 'w') as f:
         for i in range(0, n):
             f.write(f'{cnt[i][0]} {cnt[i][1]}\n')
-            if cnt[i][0] > 2:
+            if cnt[i][0] > k:
                 result.append(x[cnt[i][1]])
-
-    x = np.array(result)
-    x = x.transpose()
-    x = x[~np.all(x == 0, axis=1)]
-    x = x.transpose()
-    return x
+    return np.array(result)
 
 def fit(data, k):
     data = data.astype(float)
@@ -87,10 +101,10 @@ def fit(data, k):
     # data = remove_n(data, 3)
 
     # find pearson correlation
-    # similarities = pearson_correlation(demeaned)
+    similarities = pearson_correlation(data)
 
     # find cosine similarity
-    similarities = metrics.pairwise.cosine_similarity(data)
+    # similarities = metrics.pairwise.cosine_similarity(data)
     
     result = data.copy().astype(float)
 
@@ -129,7 +143,7 @@ def prepare_data():
 
     # transpose
     # compress coordinates
-    compressed_target = compress_axis(target)
+    compressed_target = compress_array(target, 100, 3, 5, 1)
 
     return compressed_target
 
@@ -202,9 +216,89 @@ def test_error(x, k):
     error = calculate_error(result, test)
 
     return error
+
+def plot_sse(data):
+    sse = []
+    list_k = list(range(1, 50))
+
+    for k in list_k:
+        # km = KMedoids(n_clusters=k, metric='cosine', init='k-medoids++').fit(data)
+        km = KMeans(n_clusters=k)
+        km.fit(data)
+        sse.append(km.inertia_)
+
+    # Plot sse against k
+    plt.figure(figsize=(6, 6))
+    plt.plot(list_k, sse, '-o')
+    plt.xlabel(r'Number of clusters *k*')
+    plt.ylabel('Sum of squared distance');
+    plt.show()
+
+def plot_silhouette(data):
+    list_k = list(range(3, 20))
+    ratings = []
+    for k in list_k:
+        # km = KMeans(n_clusters=k)
+        km = KMedoids(n_clusters=k, metric='jaccard')
+        labels = np.array(km.fit_predict(data))
+        print(labels)
+        silhouette_vals = silhouette_samples(data, labels)
+        avg_score = np.mean(silhouette_vals)
+        ratings.append((avg_score, k))
+    
+    ratings = sorted(ratings, key=lambda x: x[0], reverse=True)
+    for i in range(15):
+        print(f'avg={ratings[i][0]} k={ratings[i][1]}\n')
+
+    return
+
+    for i, k in enumerate(list_k):
+        plt.figure(figsize=(6, 6))
+        
+        # Run the Kmeans algorithm
+        # km = KMedoids(n_clusters=k, metric=lambda x, y: pearson_correlation(x, y), init='k-medoids++')
+        # km = KMedoids(n_clusters=k, metric='cosine', init='k-medoids++')
+        km = KMeans(n_clusters=k)
+        labels = km.fit_predict(data)
+        centroids = km.cluster_centers_
+
+        # Get silhouette samples
+        silhouette_vals = silhouette_samples(data, labels)
+        avg_score = np.mean(silhouette_vals)
+        print(f'k={k} avg={avg_score}\n')
+
+        if avg_score < 0:
+            continue
+
+        # Silhouette plot
+        y_ticks = []
+        y_lower, y_upper = 0, 0
+        for i, cluster in enumerate(np.unique(labels)):
+            cluster_silhouette_vals = silhouette_vals[labels == cluster]
+            cluster_silhouette_vals.sort()
+            y_upper += len(cluster_silhouette_vals)
+            plt.barh(range(y_lower, y_upper), cluster_silhouette_vals, edgecolor='none', height=1)
+            plt.text(-0.03, (y_lower + y_upper) / 2, str(i + 1))
+            y_lower += len(cluster_silhouette_vals)
+
+        # Get the average silhouette score and plot it
+        plt.axvline(avg_score, linestyle='--', linewidth=2, color='green')
+        plt.yticks([])
+        plt.xlim([-0.1, 1])
+        plt.xlabel('Silhouette coefficient values')
+        plt.ylabel('Cluster labels')
+        plt.title('Silhouette plot for the various clusters', y=1.02);
+
+        plt.suptitle(f'Silhouette analysis using k = {k}',
+                    fontsize=16, fontweight='semibold', y=1.05);
+        plt.show()
     
 data = prepare_data()
+print(f'{data.shape[0]}x{data.shape[1]}\n')
+# demeaned = remove_mean(data.copy())
+# model = KMedoids(metric=lambda x, y: pearson_correlation(x, y), init='k-medoids++').fit(data)
+scaler = StandardScaler()
+good_data = scaler.fit_transform(data)
 
-
-print(calculate_accuracy(data, 10, 20, 10))
-# print(f'k=10 rmse={test_error(data, 10)}')
+plot_silhouette(data)
+# plot_sse(good_data)
