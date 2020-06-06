@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 
 def parse():
     ratings = []
-    with open('data/visits.csv') as csv_file:
+    with open('data/ratings.csv') as csv_file:
         reader = csv.reader(csv_file, delimiter=',')
         for row in reader:
             ratings.append((int(row[0]), int(row[1]), int(row[2])))
@@ -143,11 +143,12 @@ def prepare_data():
 
     # transpose
     # compress coordinates
-    compressed_target = compress_array(target, 100, 0, 5, 0)
+    compressed_target = compress_array(target, 50, 3, 0, 0)
     scaler = StandardScaler()
     good_data = scaler.fit_transform(compressed_target)
-
     return good_data
+
+    return compressed_target
 
 def calculate_error(x, y):
     result = 0
@@ -308,3 +309,16 @@ def main():
 
     plot_silhouette(good_data)
     # plot_sse(good_data)
+
+def clear_data():
+    data = prepare_data()
+    print(f'{data.shape[0]}x{data.shape[1]}\n')
+
+    with open('data/normalized_ratings.csv', 'w') as f:
+        for i in range(data.shape[0]):
+            for j in range(data.shape[1]):
+                value = data[i][j]
+                if value > 0:
+                    f.write(f'{i},{j},{value}\n')
+
+clear_data()

@@ -11,11 +11,11 @@ from surprise.model_selection import cross_validate
 import models
 
 # global model variable 
-algo = SVDpp(n_factors=100, verbose=True, n_epochs=100)
+algo = SVDpp()
 
 def train():
     # load dataset
-    file_path = os.path.expanduser('data/ratings.csv')
+    file_path = os.path.expanduser('data/normalized_ratings.csv')
     reader = Reader(line_format='user item rating', sep=',')
     data = Dataset.load_from_file(file_path, reader=reader)
     training_set = data.build_full_trainset()
